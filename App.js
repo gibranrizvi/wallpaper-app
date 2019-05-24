@@ -4,20 +4,34 @@ import {
   Text,
   View,
   ActivityIndicator,
-  FLatList,
+  FlatList,
   Dimensions,
-  Image
+  Image,
+  Animated,
+  TouchableWithoutFeedback,
+  TouchableOpacity
 } from 'react-native';
 import axios from 'axios';
-import { FlatList } from 'react-native-gesture-handler';
+import { Ionicons } from '@expo/vector-icons';
 
 const { height, width } = Dimensions.get('window');
 
 export default class App extends React.Component {
   state = {
     isLoading: true,
-    images: []
+    images: [],
+    scale: new Animated.Value(1),
+    isImageFocused: false
   };
+
+  scale = {
+    transform: [{ scale: this.state.scale }]
+  };
+
+  actionBarY = this.state.scale.interpolate({
+    inputRange: [0.9, 1],
+    outputRange: [0, -80]
+  });
 
   componentDidMount() {
     this.loadWallpapers();
@@ -29,7 +43,6 @@ export default class App extends React.Component {
         'https://api.unsplash.com/photos/random?count=30&client_id=c6dc42f21ea956b65a8e4bde68c825f6de8bf17425182317ed5c2802b8621fe1'
       )
       .then(({ data }) => {
-        console.log(data);
         this.setState({ images: data, isLoading: false });
       })
       .catch(err => {
@@ -38,6 +51,25 @@ export default class App extends React.Component {
       .finally(() => {
         console.log('Request completed');
       });
+  };
+
+  showControls = () => {
+    this.setState(
+      prevState => ({
+        isImageFocused: !prevState.isImageFocused
+      }),
+      () => {
+        if (this.state.isImageFocused) {
+          Animated.spring(this.state.scale, {
+            toValue: 0.9
+          }).start();
+        } else {
+          Animated.spring(this.state.scale, {
+            toValue: 1
+          }).start();
+        }
+      }
+    );
   };
 
   renderItem = ({ item }) => {
@@ -57,12 +89,68 @@ export default class App extends React.Component {
         >
           <ActivityIndicator size="large" color="grey" />
         </View>
-        <View style={{ height, width }}>
-          <Image
-            style={{ flex: 1, height: null, width: null, resizeMode: 'cover' }}
-            source={{ uri: item.urls.regular }}
-          />
-        </View>
+        <TouchableWithoutFeedback onPress={this.showControls}>
+          <Animated.View style={[{ height, width }, this.scale]}>
+            <Image
+              style={{
+                flex: 1,
+                height: null,
+                width: null,
+                resizeMode: 'cover'
+              }}
+              source={{ uri: item.urls.regular }}
+            />
+          </Animated.View>
+        </TouchableWithoutFeedback>
+        <Animated.View
+          style={{
+            flexDirection: 'row',
+            justifyContent: 'space-around',
+            position: 'absolute',
+            left: 0,
+            right: 0,
+            bottom: this.actionBarY,
+            height: 80,
+            backgroundColor: 'black'
+          }}
+        >
+          <View
+            style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}
+          >
+            <TouchableOpacity
+              onPress={() => {
+                alert('load images');
+              }}
+              activeOpacity={0.5}
+            >
+              <Ionicons name="ios-refresh" color="white" size={40} />
+            </TouchableOpacity>
+          </View>
+          <View
+            style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}
+          >
+            <TouchableOpacity
+              onPress={() => {
+                alert('load images');
+              }}
+              activeOpacity={0.5}
+            >
+              <Ionicons name="ios-share" color="white" size={40} />
+            </TouchableOpacity>
+          </View>
+          <View
+            style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}
+          >
+            <TouchableOpacity
+              onPress={() => {
+                alert('load images');
+              }}
+              activeOpacity={0.5}
+            >
+              <Ionicons name="ios-save" color="white" size={40} />
+            </TouchableOpacity>
+          </View>
+        </Animated.View>
       </View>
     );
   };
@@ -75,6 +163,7 @@ export default class App extends React.Component {
     ) : (
       <View style={styles.container}>
         <FlatList
+          scrollEnabled={!this.state.isImageFocused}
           horizontal
           pagingEnabled
           data={this.state.images}
